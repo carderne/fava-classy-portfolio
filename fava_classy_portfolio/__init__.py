@@ -227,6 +227,8 @@ class FavaClassyPortfolio(FavaExtensionBase):  # pragma: no cover
         portfolio_tree["portfolio_total"] = ZERO
         portfolio_tree["asset_classes"] = {}
         for node in nodes:
+            if node.balance == {}:
+                continue
             account_name = node.name
             commodity = node_commodity(node)
             if (commodity in self.commodity_dict) and (
