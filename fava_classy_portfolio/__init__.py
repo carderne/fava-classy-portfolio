@@ -1,17 +1,19 @@
 """
 Classy Portfolio extension for Fava.
 """
+
 import datetime
 import re
 import sys
 import traceback
 from decimal import Decimal
+from typing import Literal, Optional, Union
 
 from beancount.core import amount, convert, prices
 from beancount.core.data import iter_entry_dates
-from beancount.core.number import ZERO, D
+from beancount.core.number import ZERO
 from fava.core import FilteredLedger
-from fava.core.tree import Tree
+from fava.core.tree import Tree, TreeNode
 from fava.ext import FavaExtensionBase
 from fava.helpers import FavaAPIException
 from flask import g
@@ -40,12 +42,12 @@ class FavaClassyPortfolio(FavaExtensionBase):
 
     report_title = "Classy Portfolio"
 
-    def load_report(self):
+    def load_report(self) -> None:
         self.commodity_dict = {
             entry.currency: entry for entry in self.ledger.all_entries_by_type.Commodity
         }
 
-    def portfolio_accounts(self, begin=None, end=None):
+    def portfolio_accounts(self, begin=None, end=None) -> list:
         """An account tree based on matching regex patterns."""
         portfolios = []
 
@@ -85,7 +87,9 @@ class FavaClassyPortfolio(FavaExtensionBase):
 
         return portfolios
 
-    def _account_name_pattern(self, tree, date, pattern):
+    def _account_name_pattern(
+        self, tree: Tree, date: datetime.date, pattern: str
+    ) -> tuple[str, str, tuple]:
         """
         Returns portfolio info based on matching account name.
 
@@ -106,9 +110,11 @@ class FavaClassyPortfolio(FavaExtensionBase):
 
         selected_nodes = [tree[x] for x in selected_accounts]
         portfolio_data = self._portfolio_data(selected_nodes, date)
-        return (title, subtitle, portfolio_data)
+        return title, subtitle, portfolio_data
 
-    def _account_metadata_pattern(self, tree, date, metadata_key, pattern):
+    def _account_metadata_pattern(
+        self, tree: Tree, date: datetime.date, metadata_key: str, pattern: str
+    ) -> tuple[str, str, tuple]:
         """
         Returns portfolio info based on matching account open metadata.
 
@@ -134,9 +140,11 @@ class FavaClassyPortfolio(FavaExtensionBase):
 
         selected_nodes = [tree[x] for x in selected_accounts]
         portfolio_data = self._portfolio_data(selected_nodes, date)
-        return (title, subtitle, portfolio_data)
+        return title, subtitle, portfolio_data
 
-    def _asset_info(self, node, date):
+    def _asset_info(
+        self, node: TreeNode, date: datetime.date
+    ) -> tuple[Decimal, Decimal, Decimal]:
         """
         Additional info on an asset (price, gain/loss)
         """
@@ -161,8 +169,8 @@ class FavaClassyPortfolio(FavaExtensionBase):
 
         # Calculate unrealized gain/loss (percentage)
         account_gain_loss_unrealized_percentage = (
-            (account_income_gain_loss_unrealized * D(-1.0)) / account_cost
-        ) * D(100.0)
+            (account_income_gain_loss_unrealized * Decimal(-1.0)) / account_cost
+        ) * Decimal(100)
 
         return (
             account_balance_market_value,
@@ -170,18 +178,18 @@ class FavaClassyPortfolio(FavaExtensionBase):
             account_gain_loss_unrealized_percentage,
         )
 
-    def _account_latest_price(self, node):
+    def _account_latest_price(self, node: TreeNode) -> Optional[tuple]:
         # Get latest price date
         quote_price = list(node.balance.keys())[0]
         if quote_price[1] is None:
             latest_price = None
         else:
             base = quote_price[0]
-            currency = quote_price[1][1]
+            currency = quote_price[1][1]  # type: ignore
             latest_price = prices.get_latest_price(g.ledger.price_map, (currency, base))
         return latest_price
 
-    def _convert_cost(self, node, date) -> amount.Amount:
+    def _convert_cost(self, node: TreeNode, date: datetime.date) -> amount.Amount:
         account_cost_node = node.balance.reduce(convert.get_cost)
         cur, num = list(account_cost_node.items())[0]
         amt = amount.Amount(num, cur)
@@ -190,7 +198,9 @@ class FavaClassyPortfolio(FavaExtensionBase):
         )
         return account_cost_amt
 
-    def _portfolio_data(self, nodes, date):
+    def _portfolio_data(
+        self, nodes: list[TreeNode], date: datetime.date
+    ) -> tuple[dict, list, list]:
         """
         Turn a portfolio of tree nodes into portfolio_table-style data,
         looking at account 'asset_class' and 'asset_subclass' data.
@@ -221,9 +231,7 @@ class FavaClassyPortfolio(FavaExtensionBase):
             ("latest_price_date", str(datetime.date)),
         ]
 
-        portfolio_tree = {}
-        portfolio_tree["portfolio_total"] = ZERO
-        portfolio_tree["asset_classes"] = {}
+        portfolio_tree: dict = {"portfolio_total": ZERO, "asset_classes": {}}
         for node in nodes:
             if node.balance == {}:
                 continue
@@ -313,7 +321,8 @@ class FavaClassyPortfolio(FavaExtensionBase):
                 ]["accounts"][account_name] = account_data
 
                 # Accumulate sums
-                portfolio_tree["portfolio_total"] += account_balance_market_value
+                if account_balance_market_value:
+                    portfolio_tree["portfolio_total"] += account_balance_market_value
                 portfolio_tree["asset_classes"][asset_class][
                     "asset_class_total"
                 ] += account_balance_market_value
@@ -432,7 +441,7 @@ class FavaClassyPortfolio(FavaExtensionBase):
         return portfolio_tree, types, errors
 
 
-def node_commodity(node):
+def node_commodity(node: TreeNode) -> str:
     """
     Return the common 'commodity' in an account.
     Return 'mixed_commodities' if an account has multiple commodities.
@@ -448,17 +457,18 @@ def node_commodity(node):
         return ""
 
 
-def insert_rowspans(data, coltypes, isStart):
-    new_data = {}
+def insert_rowspans(data: dict, coltypes: list, isStart: bool) -> dict:
+    new_data: dict[str, Union[dict, tuple]] = {}
     colcount = 0
 
     if isStart:
         # if starting, we start traversing the data by coltype
         for coltype in coltypes:
             if coltype[1] == "<class 'dict'>":
+                coltype_key: Literal["portfolio_total", "asset_classes"] = coltype[0]
                 # Recurse and call rowspans again
                 new_data_inner = insert_rowspans(
-                    data[coltype[0]], coltypes[(colcount + 1) :], False
+                    data[coltype_key], coltypes[(colcount + 1) :], False
                 )
 
                 # Collect the results
