@@ -10,6 +10,7 @@ from decimal import Decimal
 from beancount.core import amount, convert, prices
 from beancount.core.data import iter_entry_dates
 from beancount.core.number import ZERO, D
+from fava.core import FilteredLedger
 from fava.core.tree import Tree
 from fava.ext import FavaExtensionBase
 from fava.helpers import FavaAPIException
@@ -51,10 +52,11 @@ class FavaClassyPortfolio(FavaExtensionBase):
         try:
             self.load_report()
 
+            filt_ledger = FilteredLedger(self.ledger)
             if begin:
-                tree = Tree(iter_entry_dates(self.ledger.entries, begin, end))
+                tree = Tree(iter_entry_dates(filt_ledger.entries, begin, end))
             else:
-                tree = self.ledger.root_tree
+                tree = filt_ledger.root_tree
 
             for option in self.config:
                 opt_key = option[0]
