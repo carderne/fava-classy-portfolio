@@ -1,23 +1,22 @@
 """
 Classy Portfolio extension for Fava.
 """
-import re
 import datetime
-import traceback
+import re
 import sys
+import traceback
+from decimal import Decimal
 
-from beancount.core.data import iter_entry_dates, Open, Commodity
-from beancount.core.number import ZERO, D, Decimal
-from beancount.core import prices, convert, amount
-
-from flask import g
-
-from fava.ext import FavaExtensionBase
-from fava.template_filters import cost_or_value
-from fava.core.tree import Tree
-from fava.helpers import FavaAPIException
-from fava.core.conversion import get_market_value
+from beancount.core import amount, convert, prices
+from beancount.core.data import Commodity, Open, iter_entry_dates
+from beancount.core.number import ZERO, D
 from fava.application import app
+from fava.core.conversion import get_market_value
+from fava.core.tree import Tree
+from fava.ext import FavaExtensionBase
+from fava.helpers import FavaAPIException
+from fava.template_filters import cost_or_value
+from flask import g
 
 
 class AccountsDict(dict):
@@ -36,7 +35,7 @@ class DecimalPercentGainLoss(Decimal):
     pass
 
 
-class FavaClassyPortfolio(FavaExtensionBase):  # pragma: no cover
+class FavaClassyPortfolio(FavaExtensionBase):
     """Fava Extension Report that prints out a portfolio list based
     on asset-class and asset-subclass metadata.
     """
