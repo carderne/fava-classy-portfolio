@@ -8,14 +8,11 @@ import traceback
 from decimal import Decimal
 
 from beancount.core import amount, convert, prices
-from beancount.core.data import Commodity, Open, iter_entry_dates
+from beancount.core.data import iter_entry_dates
 from beancount.core.number import ZERO, D
-from fava.application import app
-from fava.core.conversion import get_market_value
 from fava.core.tree import Tree
 from fava.ext import FavaExtensionBase
 from fava.helpers import FavaAPIException
-from fava.template_filters import cost_or_value
 from flask import g
 
 
@@ -81,7 +78,7 @@ class FavaClassyPortfolio(FavaExtensionBase):
                 )
                 portfolios.append(portfolio)
 
-        except Exception as exc:
+        except Exception:
             traceback.print_exc(file=sys.stdout)
 
         return portfolios
