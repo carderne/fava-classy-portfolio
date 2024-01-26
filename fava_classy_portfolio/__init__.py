@@ -15,7 +15,7 @@ from beancount.core.number import ZERO
 from fava.core import FilteredLedger
 from fava.core.tree import Tree, TreeNode
 from fava.ext import FavaExtensionBase
-from fava.helpers import FavaAPIException
+from fava.helpers import FavaAPIError
 from flask import g
 
 
@@ -69,7 +69,7 @@ class FavaClassyPortfolio(FavaExtensionBase):
                         tree, end, option[1][0], option[1][1]
                     )
                 else:
-                    exception = FavaAPIException("Classy Portfolio: Invalid option.")
+                    exception = FavaAPIError("Classy Portfolio: Invalid option.")
                     raise (exception)
 
                 portfolio = (
